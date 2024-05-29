@@ -284,18 +284,20 @@ def generate_code(request, response):
                                                 item,
                                                 nested.field[1],
                                             )
-                                            t = f"dict[{k}, {v}]"
+                                            t = f"Dict[{k}, {v}]"
                                             field_type = "map"
                                             map_types = (
                                                 f.Type.Name(nested.field[0].type),
                                                 f.Type.Name(nested.field[1].type),
                                             )
+                                            output["typing_imports"].add("Dict")
 
                         if f.label == 3 and field_type != "map":
                             # Repeated field
                             repeated = True
-                            t = f"list[{t}]"
+                            t = f"List[{t}]"
                             zero = "[]"
+                            output["typing_imports"].add("List")
 
                             if f.type in [1, 2, 3, 4, 5, 6, 7, 8, 13, 15, 16, 17, 18]:
                                 packed = True
