@@ -3,47 +3,25 @@ import enum
 import inspect
 import json
 import struct
-import sys
 from abc import ABC
 from base64 import b64encode, b64decode
 from datetime import datetime, timedelta, timezone
 from typing import (
     Any,
-    AsyncGenerator,
-    Callable,
     Collection,
-    Dict,
     Generator,
-    Iterable,
-    List,
     Mapping,
     Optional,
-    SupportsBytes,
-    Tuple,
     Type,
     TypeVar,
     Union,
     get_type_hints,
-    TYPE_CHECKING,
 )
 
-
-import grpclib.const
 import stringcase
+from grpc import Channel
 
 from .casing import safe_snake_case
-
-if TYPE_CHECKING:
-    from grpclib._protocols import IProtoMessage
-    from grpclib.client import Channel
-    from grpclib.metadata import Deadline
-
-if not (sys.version_info.major == 3 and sys.version_info.minor >= 7):
-    # Apply backport of datetime.fromisoformat from 3.7
-    from backports.datetime_fromisoformat import MonkeyPatch
-
-    MonkeyPatch.patch_fromisoformat()
-
 
 # Proto 3 data types
 TYPE_ENUM = "enum"
@@ -152,7 +130,7 @@ class FieldMetadata:
     # Protobuf type name
     proto_type: str
     # Map information if the proto_type is a map
-    map_types: Optional[Tuple[str, str]] = None
+    map_types: Optional[tuple[str, str]] = None
     # Groups several "one-of" fields together
     group: Optional[str] = None
     # Describes the wrapped type (e.g. when using google.protobuf.BoolValue)
@@ -168,7 +146,7 @@ def dataclass_field(
     number: int,
     proto_type: str,
     *,
-    map_types: Optional[Tuple[str, str]] = None,
+    map_types: Optional[tuple[str, str]] = None,
     group: Optional[str] = None,
     wraps: Optional[str] = None,
 ) -> dataclasses.Field:
@@ -290,7 +268,7 @@ def _pack_fmt(proto_type: str) -> str:
 
 def encode_varint(value: int) -> bytes:
     """Encodes a single varint value for serialization."""
-    b: List[int] = []
+    b: list[int] = []
 
     if value < 0:
         value += 1 << 64
@@ -379,7 +357,7 @@ def _serialize_single(
     return output
 
 
-def decode_varint(buffer: bytes, pos: int, signed: bool = False) -> Tuple[int, int]:
+def decode_varint(buffer: bytes, pos: int, signed: bool = False) -> tuple[int, int]:
     """
     Decode a single varint value from a byte buffer. Returns the value and the
     new position in the buffer.
@@ -500,7 +478,7 @@ class Message(ABC):
 
     _serialized_on_wire: bool
     _unknown_fields: bytes
-    _group_map: Dict[str, dict]
+    _group_map: dict[str, dict]
 
     def __post_init__(self) -> None:
         # Keep track of whether every field was default
@@ -508,7 +486,7 @@ class Message(ABC):
 
         # Set a default value for each field in the class after `__init__` has
         # already been run.
-        group_map: Dict[str, dataclasses.Field] = {}
+        group_map: dict[str, dataclasses.Field] = {}
         for field in dataclasses.fields(self):
             meta = FieldMetadata.get(field)
 
@@ -658,10 +636,10 @@ class Message(ABC):
         t = cls._type_hint(field.name)
 
         if hasattr(t, "__origin__"):
-            if t.__origin__ in (dict, Dict):
+            if t.__origin__ == dict:
                 # This is some kind of map (dict in Python).
                 return dict
-            elif t.__origin__ in (list, List):
+            elif t.__origin__ == list:
                 # This is some kind of list (repeated) field.
                 return list
             elif t.__origin__ == Union and t.__args__[1] == type(None):
@@ -791,7 +769,7 @@ class Message(ABC):
         not be in returned dict if `include_default_values` is set to
         `False`.
         """
-        output: Dict[str, Any] = {}
+        output: dict[str, Any] = {}
         for field in dataclasses.fields(self):
             meta = FieldMetadata.get(field)
             v = getattr(self, field.name)
@@ -925,7 +903,7 @@ def serialized_on_wire(message: Message) -> bool:
     return message._serialized_on_wire
 
 
-def which_one_of(message: Message, group_name: str) -> Tuple[str, Any]:
+def which_one_of(message: Message, group_name: str) -> tuple[str, Any]:
     """Return the name and value of a message's one-of field group."""
     field = message._group_map.get(group_name)
     if not field:
@@ -1069,7 +1047,7 @@ def _get_wrapper(proto_type: str) -> Type:
 
 
 _Value = Union[str, bytes]
-_MetadataLike = Union[Mapping[str, _Value], Collection[Tuple[str, _Value]]]
+_MetadataLike = Union[Mapping[str, _Value], Collection[tuple[str, _Value]]]
 
 
 class ServiceStub(ABC):
@@ -1077,72 +1055,24 @@ class ServiceStub(ABC):
     Base class for async gRPC service stubs.
     """
 
-    def __init__(
-        self,
-        channel: "Channel",
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional[_MetadataLike] = None,
-    ) -> None:
+    def __init__(self, channel: Channel) -> None:
         self.channel = channel
-        self.timeout = timeout
-        self.deadline = deadline
-        self.metadata = metadata
+        self.__methods_cache = {}
 
-    def __resolve_request_kwargs(
-        self,
-        timeout: Optional[float],
-        deadline: Optional["Deadline"],
-        metadata: Optional[_MetadataLike],
-    ):
-        return {
-            "timeout": self.timeout if timeout is None else timeout,
-            "deadline": self.deadline if deadline is None else deadline,
-            "metadata": self.metadata if metadata is None else metadata,
-        }
+    def _get_unary_unary_method(self, route, response_type: type[Message]):
+        if route not in self.__methods_cache:
+            self.__methods_cache[route] = self.channel.unary_unary(
+                route,
+                request_serializer=None,
+                response_deserializer=response_type.FromString,
+            )
+        return self.__methods_cache[route]
 
-    async def _unary_unary(
-        self,
-        route: str,
-        request: "IProtoMessage",
-        response_type: Type[T],
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional[_MetadataLike] = None,
-    ) -> T:
+    def _unary_unary(self, route: str, request: Message, response_type: Type[T]) -> T:
         """Make a unary request and return the response."""
-        async with self.channel.request(
-            route,
-            grpclib.const.Cardinality.UNARY_UNARY,
-            type(request),
-            response_type,
-            **self.__resolve_request_kwargs(timeout, deadline, metadata),
-        ) as stream:
-            await stream.send_message(request, end=True)
-            response = await stream.recv_message()
-            assert response is not None
-            return response
+        method = self._get_unary_unary_method(route, response_type)
+        return method(request.SerializeToString())
 
-    async def _unary_stream(
-        self,
-        route: str,
-        request: "IProtoMessage",
-        response_type: Type[T],
-        *,
-        timeout: Optional[float] = None,
-        deadline: Optional["Deadline"] = None,
-        metadata: Optional[_MetadataLike] = None,
-    ) -> AsyncGenerator[T, None]:
+    def _unary_stream(self, *args, **kwargs):
         """Make a unary request and return the stream response iterator."""
-        async with self.channel.request(
-            route,
-            grpclib.const.Cardinality.UNARY_STREAM,
-            type(request),
-            response_type,
-            **self.__resolve_request_kwargs(timeout, deadline, metadata),
-        ) as stream:
-            await stream.send_message(request, end=True)
-            async for message in stream:
-                yield message
+        raise NotImplementedError

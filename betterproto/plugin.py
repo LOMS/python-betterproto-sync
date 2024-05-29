@@ -5,7 +5,7 @@ import os.path
 import sys
 import textwrap
 from collections import defaultdict
-from typing import Dict, List, Optional, Type
+from typing import  Optional, Type
 
 try:
     import black
@@ -29,7 +29,7 @@ from betterproto.casing import safe_snake_case
 
 import google.protobuf.wrappers_pb2 as google_wrappers
 
-WRAPPER_TYPES: Dict[str, Optional[Type]] = defaultdict(
+WRAPPER_TYPES: dict[str, Optional[Type]] = defaultdict(
     lambda: None,
     {
         "google.protobuf.DoubleValue": google_wrappers.DoubleValue,
@@ -153,7 +153,7 @@ def traverse(proto_file):
     )
 
 
-def get_comment(proto_file, path: List[int], indent: int = 4) -> str:
+def get_comment(proto_file, path: list[int], indent: int = 4) -> str:
     pad = " " * indent
     for sci in proto_file.source_code_info.location:
         # print(list(sci.path), path, file=sys.stderr)
@@ -284,20 +284,18 @@ def generate_code(request, response):
                                                 item,
                                                 nested.field[1],
                                             )
-                                            t = f"Dict[{k}, {v}]"
+                                            t = f"dict[{k}, {v}]"
                                             field_type = "map"
                                             map_types = (
                                                 f.Type.Name(nested.field[0].type),
                                                 f.Type.Name(nested.field[1].type),
                                             )
-                                            output["typing_imports"].add("Dict")
 
                         if f.label == 3 and field_type != "map":
                             # Repeated field
                             repeated = True
-                            t = f"List[{t}]"
+                            t = f"list[{t}]"
                             zero = "[]"
-                            output["typing_imports"].add("List")
 
                             if f.type in [1, 2, 3, 4, 5, 6, 7, 8, 13, 15, 16, 17, 18]:
                                 packed = True

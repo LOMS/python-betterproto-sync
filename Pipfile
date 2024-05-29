@@ -8,20 +8,16 @@ flake8 = "*"
 mypy = "*"
 isort = "*"
 pytest = "*"
-pytest-asyncio = "*"
 rope = "*"
 
 [packages]
 protobuf = "*"
 jinja2 = "*"
-grpclib = "*"
 stringcase = "*"
 black = "*"
-backports-datetime-fromisoformat = "*"
-dataclasses = "*"
 
 [requires]
-python_version = "3.6"
+python_version = "3.9"
 
 [scripts]
 plugin = "protoc --plugin=protoc-gen-custom=betterproto/plugin.py --custom_out=output"
