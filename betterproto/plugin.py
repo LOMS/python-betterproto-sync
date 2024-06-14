@@ -87,7 +87,13 @@ def get_ref_type(
         # to use a forward ref and we need to add the import.
         parts = type_name.split(".")
         parts[-1] = stringcase.pascalcase(parts[-1])
-        imports.add(f"from .{'.'.join(parts[:-2])} import {parts[-2]}")
+
+        # Fix for "from .google import protobuf" line.
+        import_line = f"from .{'.'.join(parts[:-2])} import {parts[-2]}"
+        if import_line == "from .google import protobuf":
+            import_line = "from betterproto.vendor.google import protobuf"
+        imports.add(import_line)
+
         type_name = f"{parts[-2]}.{parts[-1]}"
 
     return type_name
