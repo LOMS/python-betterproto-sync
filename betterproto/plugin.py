@@ -390,7 +390,7 @@ def generate_code(request, response):
                             "name": method.name,
                             "py_name": stringcase.snakecase(method.name),
                             "comment": get_comment(proto_file, [6, i, 2, j], indent=8),
-                            "route": f"/{package}.{service.name}/{method.name}",
+                            "route": f"/{package}{'.' if package else ''}{service.name}/{method.name}",
                             "input": get_ref_type(
                                 package, output["imports"], method.input_type
                             ).strip('"'),
