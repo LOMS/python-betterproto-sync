@@ -407,7 +407,7 @@ def generate_code(request, response):
                     )
 
                     if method.server_streaming:
-                        output["typing_imports"].add("AsyncGenerator")
+                        output["typing_imports"].add("Generator")
 
                 output["services"].append(data)
 
