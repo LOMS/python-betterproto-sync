@@ -60,7 +60,7 @@ class {{ service.py_name }}Stub(betterproto.ServiceStub):
 
     {% endif %}
     {% for method in service.methods %}
-    def {{ method.py_name }}(self{% if method.input_message and method.input_message.properties %}, *, {% for field in method.input_message.properties %}{{ field.py_name }}: {% if field.zero == "None" and not field.type.startswith("Optional[") %}Optional[{{ field.type }}]{% else %}{{ field.type }}{% endif %} = {{ field.zero }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}) -> {% if method.server_streaming %}AsyncGenerator[{{ method.output }}, None]{% else %}{{ method.output }}{% endif %}:
+    def {{ method.py_name }}(self{% if method.input_message and method.input_message.properties %}, *, {% for field in method.input_message.properties %}{{ field.py_name }}: {% if field.zero == "None" and not field.type.startswith("Optional[") %}Optional[{{ field.type }}]{% else %}{{ field.type }}{% endif %} = {{ field.zero }}{% if not loop.last %}, {% endif %}{% endfor %}{% endif %}) -> {% if method.server_streaming %}Generator[{{ method.output }}, None, None]{% else %}{{ method.output }}{% endif %}:
         {% if method.comment %}
 {{ method.comment }}
 
@@ -76,7 +76,7 @@ class {{ service.py_name }}Stub(betterproto.ServiceStub):
         {% endfor %}
 
         {% if method.server_streaming %}
-        async for response in self._unary_stream(
+        for response in self._unary_stream(
             "{{ method.route }}",
             request,
             {{ method.output }},

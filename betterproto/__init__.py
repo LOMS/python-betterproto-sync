@@ -1068,11 +1068,21 @@ class ServiceStub(ABC):
             )
         return self.__methods_cache[route]
 
+    def _get_unary_stream_method(self, route, response_type):
+        if route not in self.__methods_cache:
+            self.__methods_cache[route] = self.channel.unary_stream(
+                route,
+                request_serializer=None,
+                response_deserializer=response_type.FromString,
+            )
+        return self.__methods_cache[route]
+
     def _unary_unary(self, route: str, request: Message, response_type: Type[T]) -> T:
         """Make a unary request and return the response."""
         method = self._get_unary_unary_method(route, response_type)
         return method(request.SerializeToString())
 
-    def _unary_stream(self, *args, **kwargs):
+    def _unary_stream(self, route: str, request: Message, response_type: Type[T]) -> Generator[T, None, None]:
         """Make a unary request and return the stream response iterator."""
-        raise NotImplementedError
+        method = self._get_unary_stream_method(route, response_type)
+        return method(request.SerializeToString())

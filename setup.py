@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="betterproto-sync",
-    version="1.4",
+    version="1.5",
     description="Sync fork of python-betterproto library. "
                 "Check out original by Daniel G. Taylor at https://github.com/danielgtaylor/python-betterproto",
     long_description=open("README.md", "r", encoding="utf-8").read(),
